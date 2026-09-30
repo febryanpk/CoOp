@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # custom config
-DATA=/path/to/datasets
+# DATA=/path/to/datasets
+DATA=/home/ryan/Desktop/HCC-Merlin/stanford_cars
 TRAINER=CoOp
 SHOTS=16
 NCTX=16
@@ -20,8 +21,8 @@ do
     --dataset-config-file configs/datasets/${DATASET}.yaml \
     --config-file configs/trainers/${TRAINER}/${CFG}.yaml \
     --output-dir output/evaluation/${TRAINER}/${CFG}_${SHOTS}shots/nctx${NCTX}_csc${CSC}_ctp${CTP}/${DATASET}/seed${SEED} \
-    --model-dir output/imagenet/${TRAINER}/${CFG}_${SHOTS}shots/nctx${NCTX}_csc${CSC}_ctp${CTP}/seed${SEED} \
-    --load-epoch 50 \
+    --model-dir output/stanford_cars/${TRAINER}/${CFG}_${SHOTS}shots/nctx${NCTX}_csc${CSC}_ctp${CTP}/seed${SEED} \
+    --load-epoch 200 \
     --eval-only \
     TRAINER.COOP.N_CTX ${NCTX} \
     TRAINER.COOP.CSC ${CSC} \

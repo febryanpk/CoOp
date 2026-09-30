@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
-from tqdm import tqdm
-
 from dassl.engine import TRAINER_REGISTRY, TrainerX
-from dassl.optim import build_optimizer, build_lr_scheduler
+from dassl.optim import build_lr_scheduler, build_optimizer
+from tqdm import tqdm
 
 from clip import clip
 from clip.model import convert_weights
@@ -37,6 +36,7 @@ CUSTOM_TEMPLATES = {
     "ImageNetV2": "a photo of a {}.",
     "ImageNetA": "a photo of a {}.",
     "ImageNetR": "a photo of a {}.",
+    "NIHCXR": "a chest x-ray showing {}.",
 }
 
 

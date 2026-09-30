@@ -1,7 +1,14 @@
 #!/bin/bash
 
 # custom config
-DATA=/path/to/datasets
+# DATA=/path/to/datasets
+# DATA=/home/ryan/Desktop/HCC-Merlin/stanford_cars
+# DATA=/home/ryan/Desktop/HCC-Merlin/data/food-101
+# DATA=/home/ryan/Desktop/HCC-Merlin/data_eurosat
+# DATA=/home/ryan/Desktop/HCC-Merlin/data_dtd/dtd
+# DATA=/home/ryan/Desktop/HCC-Merlin/data_flowers102/flowers-102
+DATA=${DATA:-/media/ryan/TOSHIBA2/nih_cxr}
+# DATA=/home/ryan/Desktop/HCC-Merlin/data_oxfordpets
 TRAINER=CoOp
 
 DATASET=$1
