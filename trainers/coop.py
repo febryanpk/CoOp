@@ -11,6 +11,7 @@ from torch.nn import functional as F
 
 from clip import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
+
 from .retrieval import (
     finalize_image_to_text_recall,
     finalize_text_to_image_recall_from_topk,
@@ -21,8 +22,6 @@ from .retrieval import (
     update_text_to_image_topk,
     write_retrieval_results,
 )
-
-from .retrieval import evaluate_retrieval
 
 _tokenizer = _Tokenizer()
 
