@@ -73,6 +73,15 @@ def reset_cfg(cfg, args):
     if args.head:
         cfg.MODEL.HEAD.NAME = args.head
 
+    if args.retrieval_eval:
+        cfg.RETRIEVAL.EVAL = True
+
+    if args.retrieval_direction:
+        cfg.RETRIEVAL.DIRECTION = args.retrieval_direction
+
+    if args.retrieval_k:
+        cfg.RETRIEVAL.RECALL_KS = args.retrieval_k
+
 
 def extend_cfg(cfg):
     """
@@ -100,6 +109,12 @@ def extend_cfg(cfg):
     cfg.TRAINER.COCOOP.PREC = "fp16"  # fp16, fp32, amp
 
     cfg.DATASET.SUBSAMPLE_CLASSES = "all"  # all, base or new
+
+    cfg.RETRIEVAL = CN()
+    cfg.RETRIEVAL.EVAL = False
+    cfg.RETRIEVAL.DIRECTION = "both"  # image_to_text, text_to_image, both
+    cfg.RETRIEVAL.RECALL_KS = [1, 5, 10]
+    cfg.RETRIEVAL.RESULTS_FILE = "retrieval_results.json"
 
 
 def setup_cfg(args):
@@ -144,6 +159,12 @@ def main(args):
     if args.eval_only:
         trainer.load_model(args.model_dir, epoch=args.load_epoch)
         trainer.test()
+        if cfg.RETRIEVAL.EVAL:
+            if not hasattr(trainer, "evaluate_retrieval"):
+                raise NotImplementedError(
+                    f"{cfg.TRAINER.NAME} does not implement retrieval evaluation"
+                )
+            trainer.evaluate_retrieval()
         return
 
     if not args.no_train:
@@ -196,6 +217,23 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--no-train", action="store_true", help="do not call trainer.train()"
+    )
+    parser.add_argument(
+        "--retrieval-eval",
+        action="store_true",
+        help="run retrieval evaluation on the test split in eval-only mode",
+    )
+    parser.add_argument(
+        "--retrieval-direction",
+        type=str,
+        choices=["image_to_text", "text_to_image", "both"],
+        help="retrieval direction",
+    )
+    parser.add_argument(
+        "--retrieval-k",
+        type=int,
+        nargs="+",
+        help="Recall@k values, e.g. --retrieval-k 1 5 10",
     )
     parser.add_argument(
         "opts",

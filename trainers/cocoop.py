@@ -14,6 +14,16 @@ from dassl.optim import build_optimizer, build_lr_scheduler
 
 from clip import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
+from .retrieval import (
+    finalize_image_to_text_recall,
+    finalize_text_to_image_recall_from_topk,
+    init_text_to_image_topk,
+    normalize_recall_ks,
+    print_retrieval_results,
+    update_image_to_text_hits,
+    update_text_to_image_topk,
+    write_retrieval_results,
+)
 
 _tokenizer = _Tokenizer()
 
@@ -313,3 +323,84 @@ class CoCoOp(TrainerX):
             print("Loading weights to {} " 'from "{}" (epoch = {})'.format(name, model_path, epoch))
             # set strict=False
             self._models[name].load_state_dict(state_dict, strict=False)
+
+    @torch.no_grad()
+    def evaluate_retrieval(self):
+        direction = self.cfg.RETRIEVAL.DIRECTION
+        recall_ks = normalize_recall_ks(self.cfg.RETRIEVAL.RECALL_KS)
+        max_k = max(recall_ks)
+
+        model = self.model
+        if isinstance(model, nn.DataParallel):
+            model = model.module
+
+        self.set_model_mode("eval")
+
+        i2t_hits = {f"R@{k}": 0.0 for k in recall_ks}
+        i2t_total = 0
+        max_k_img = min(max_k, len(self.dm.dataset.test))
+        if max_k_img <= 0:
+            raise ValueError("Retrieval evaluation requires at least one test image")
+        best_scores = None
+        best_labels = None
+        class_counts = None
+        num_classes = None
+        num_test_images = 0
+
+        for batch in self.test_loader:
+            image = batch["img"].to(self.device)
+            label = batch["label"].to(self.device)
+            logits = model(image)
+            logits = logits.cpu()
+            labels = label.cpu()
+            num_test_images += labels.numel()
+
+            if num_classes is None:
+                num_classes = logits.size(1)
+                best_scores, best_labels = init_text_to_image_topk(num_classes, max_k_img)
+                class_counts = torch.zeros(num_classes, dtype=torch.long)
+
+            if direction in ["image_to_text", "both"]:
+                i2t_hits, i2t_total = update_image_to_text_hits(
+                    i2t_hits, i2t_total, logits, labels, recall_ks
+                )
+
+            if direction in ["text_to_image", "both"]:
+                best_scores, best_labels = update_text_to_image_topk(
+                    best_scores, best_labels, logits, labels
+                )
+                class_counts += torch.bincount(labels, minlength=num_classes)
+
+        direction_results = {}
+        if direction in ["image_to_text", "both"]:
+            direction_results["image_to_text"] = finalize_image_to_text_recall(
+                i2t_hits, i2t_total, recall_ks
+            )
+
+        if direction in ["text_to_image", "both"]:
+            t2i, valid_queries, skipped_queries = finalize_text_to_image_recall_from_topk(
+                best_labels, class_counts, recall_ks, num_classes
+            )
+            t2i["valid_class_queries"] = valid_queries
+            t2i["skipped_class_queries"] = skipped_queries
+            t2i[
+                "note"
+            ] = "CoCoOp text-to-image ranks images by image-conditioned class scores (no static class text embedding)."
+            direction_results["text_to_image"] = t2i
+
+        retrieval_results = {
+            "dataset": self.cfg.DATASET.NAME,
+            "trainer": self.cfg.TRAINER.NAME,
+            "prompt_mode": "soft-prompt-cocoop-image-conditioned",
+            "direction": direction,
+            "recall_ks": recall_ks,
+            "num_test_images": int(num_test_images),
+            "num_candidate_texts": int(num_classes),
+            "results": direction_results,
+        }
+
+        print_retrieval_results(retrieval_results)
+        output_path = write_retrieval_results(
+            self.cfg.OUTPUT_DIR, self.cfg.RETRIEVAL.RESULTS_FILE, retrieval_results
+        )
+        print(f"Saved retrieval results to {output_path}")

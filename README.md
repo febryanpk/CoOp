@@ -39,6 +39,54 @@ Click a paper below to see the detailed instructions on how to run the code to r
 * [Learning to Prompt for Vision-Language Models](COOP.md)
 * [Conditional Prompt Learning for Vision-Language Models](COCOOP.md)
 
+### Retrieval Evaluation (Recall@k)
+
+`train.py` now supports retrieval evaluation on the **test split** with:
+
+- directions: `image_to_text`, `text_to_image`, `both`
+- configurable `Recall@k` list (default `1 5 10`)
+- JSON output saved to `${OUTPUT_DIR}/retrieval_results.json`
+
+Relevance rule for text-to-image: for each class text query, the retrieval is counted as correct at top-k if **at least one** test image from that class appears in top-k.
+
+#### Zero-shot hard prompts (reuses existing dataset templates / prompt ensemble behavior)
+
+```bash
+python train.py \
+  --root /path/to/datasets \
+  --trainer ZeroshotCLIP \
+  --dataset-config-file configs/datasets/oxford_pets.yaml \
+  --config-file configs/trainers/CoOp/vit_b16.yaml \
+  --output-dir output/retrieval/zsclip/oxford_pets \
+  --eval-only \
+  --retrieval-eval \
+  --retrieval-direction both \
+  --retrieval-k 1 5 10
+```
+
+Use `--trainer ZeroshotCLIP2` to evaluate with prompt ensembling.
+
+#### Prompt-tuned soft prompts (CoOp checkpoint)
+
+```bash
+python train.py \
+  --root /path/to/datasets \
+  --trainer CoOp \
+  --dataset-config-file configs/datasets/oxford_pets.yaml \
+  --config-file configs/trainers/CoOp/vit_b16_ep50.yaml \
+  --output-dir output/retrieval/coop/oxford_pets \
+  --model-dir /path/to/coop/checkpoint_dir \
+  --load-epoch 50 \
+  --eval-only \
+  --retrieval-eval \
+  --retrieval-direction both \
+  --retrieval-k 1 5 10
+```
+
+#### CoCoOp behavior
+
+CoCoOp retrieval uses image-conditioned prompts in both directions (no hard-prompt fallback). For text-to-image, images are ranked by image-conditioned class compatibility scores.
+
 ## Models and Results
 
 - The pre-trained weights of CoOp (both M=16 & M=4) on ImageNet based on RN50, RN101, ViT-B/16 and ViT-B/32 can be downloaded altogether via this [link](https://drive.google.com/file/d/18ypxfd82RR0pizc5MM1ZWDYDk4j0BtPF/view?usp=sharing). The weights can be used to reproduce the results in Table 1 of CoOp's paper (i.e., the results on ImageNet and its four variants with domain shift). To load the weights and run the evaluation code, you will need to specify `--model-dir` and `--load-epoch` (see this [script](https://github.com/KaiyangZhou/CoOp/blob/main/scripts/eval.sh) for example).
